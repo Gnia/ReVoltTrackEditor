@@ -37,6 +37,7 @@ public struct TrackZone
     public Vector3 Size;
     public Vector3[] Links;
     public bool IsPipe;
+    public bool IsDouble;
 
     public Vector2Int CellCoordinate =>  new Vector2Int(Mathf.RoundToInt(Center.x / RVConstants.SMALL_CUBE_SIZE), 
                                                         Mathf.RoundToInt(Center.z / RVConstants.SMALL_CUBE_SIZE));
@@ -68,6 +69,7 @@ public partial class TrackExporter
 {
     public bool LastZoneIsPipe => zoneSequence.Count != 0 && zones[zoneSequence.Last().ZoneID].IsPipe;
     public bool TrackFormsLoop { get; private set; }
+    public bool TrackFormsSprint { get; private set; }
     public float TrackLength => lapDistance;
     public IReadOnlyList<ZoneSequenceEntry> ZoneSequence => zoneSequence;
     public IReadOnlyList<TrackZone> Zones => zones;
@@ -78,6 +80,7 @@ public partial class TrackExporter
 
     private float exportScale = 1f;
     private bool reversed = false;
+    private bool reverseSprintTrack = false;
 
     private readonly string exportPath;
     private readonly string trackFolderName;
@@ -92,6 +95,16 @@ public partial class TrackExporter
     private float lapDistance;
 
     private ModulePlacement startModule;
+    private ModulePlacement endModule;
+
+    public ModulePlacement GetStartModule()
+    {
+        return startModule;
+    }
+    public ModulePlacement GetEndModule()
+    {
+        return endModule;
+    }
 
     /* 
         Common Data 
@@ -100,11 +113,22 @@ public partial class TrackExporter
     // tolerance used for fix functions (ex. removing excess colliision and world polys)
     private const float FIX_TOLERANCE = 0.01f; 
 
+    // IDs of pos Nodes for sprint tracks
+    private const int SPRINT_POS_NODE_START_ID = 1; // ID starting at 0
+    private const int SPRINT_POS_NODE_END_REVERSE_ID = 2; // ID counting backward from end
+
     private readonly Dictionary<int, PipeWeld> pipeWelds = new Dictionary<int, PipeWeld>()
     {
-        {(int)Modules.ID.TWM_PIPE_2, new PipeWeld((int)Modules.ID.TWM_PIPE_0, (int)Modules.ID.TWM_PIPE_1, (int)Modules.ID.TWM_PIPE_1A)},
-        {(int)Modules.ID.TWM_PIPEC_2, new PipeWeld((int)Modules.ID.TWM_PIPEC_0, (int)Modules.ID.TWM_PIPEC_1, (int)Modules.ID.TWM_PIPEC_1A)},
-        {(int)Modules.ID.TWM_PIPE_20_2, new PipeWeld((int)Modules.ID.TWM_PIPE_20_0, (int)Modules.ID.TWM_PIPE_20_1_BOT, (int)Modules.ID.TWM_PIPE_20_1_TOP)},
+        {(int)Modules.ID.TWM_PIPE_2,                            new PipeWeld((int)Modules.ID.TWM_PIPE_0,                        (int)Modules.ID.TWM_PIPE_1,                         (int)Modules.ID.TWM_PIPE_1A)},
+        {(int)Modules.ID.TWM_PIPEC_2,                           new PipeWeld((int)Modules.ID.TWM_PIPEC_0,                       (int)Modules.ID.TWM_PIPEC_1,                        (int)Modules.ID.TWM_PIPEC_1A)},
+        {(int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_BOTH_ENDS,    new PipeWeld((int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_NO_ENDS,  (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_FRONT_END, (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_SIDE_END)},
+        {(int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_BOTH_ENDS,    new PipeWeld((int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_NO_ENDS,  (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_FRONT_END, (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_SIDE_END)},
+        {(int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_BOTH_ENDS,        new PipeWeld((int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_NO_ENDS,      (int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_FRONT_END,     (int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_BACK_END)},
+        {(int)Modules.ID.TWM_PIPE_RAMP_5_BOTH_ENDS,             new PipeWeld((int)Modules.ID.TWM_PIPE_RAMP_5_NO_ENDS,           (int)Modules.ID.TWM_PIPE_RAMP_5_FRONT_END,          (int)Modules.ID.TWM_PIPE_RAMP_5_BACK_END)},
+        {(int)Modules.ID.TWM_PIPE_RAMP_10_BOTH_ENDS,            new PipeWeld((int)Modules.ID.TWM_PIPE_RAMP_10_NO_ENDS,          (int)Modules.ID.TWM_PIPE_RAMP_10_FRONT_END,         (int)Modules.ID.TWM_PIPE_RAMP_10_BACK_END)},
+        {(int)Modules.ID.TWM_PIPE_RAMP_15_BOTH_ENDS,            new PipeWeld((int)Modules.ID.TWM_PIPE_RAMP_15_NO_ENDS,          (int)Modules.ID.TWM_PIPE_RAMP_15_FRONT_END,         (int)Modules.ID.TWM_PIPE_RAMP_15_BACK_END)},
+        {(int)Modules.ID.TWM_PIPE_20_2,                         new PipeWeld((int)Modules.ID.TWM_PIPE_20_0,                     (int)Modules.ID.TWM_PIPE_20_1_BOT,                  (int)Modules.ID.TWM_PIPE_20_1_TOP)},
+        {(int)Modules.ID.TWM_PIPE_RAMP_UP_BOTH_ENDS,            new PipeWeld((int)Modules.ID.TWM_PIPE_RAMP_UP_NO_ENDS,          (int)Modules.ID.TWM_PIPE_RAMP_UP_FRONT_END,         (int)Modules.ID.TWM_PIPE_RAMP_UP_BACK_END)},
     };
 
     private readonly Vector3[][] rootVertsArray = new Vector3[][]
@@ -180,7 +204,65 @@ public partial class TrackExporter
 
     private static bool ModuleIsPipeBase(int modId)
     {
-        return (modId == (int)Modules.ID.TWM_PIPE_2 || modId == (int)Modules.ID.TWM_PIPEC_2 || modId == (int)Modules.ID.TWM_PIPE_20_2);
+        return (
+            modId == (int)Modules.ID.TWM_PIPE_0 ||
+            modId == (int)Modules.ID.TWM_PIPE_1 ||
+            modId == (int)Modules.ID.TWM_PIPE_1A ||
+            modId == (int)Modules.ID.TWM_PIPE_2 ||
+            modId == (int)Modules.ID.TWM_PIPE_20_0 ||
+            modId == (int)Modules.ID.TWM_PIPE_20_1_BOT ||
+            modId == (int)Modules.ID.TWM_PIPE_20_1_TOP ||
+            modId == (int)Modules.ID.TWM_PIPE_20_2 ||
+            modId == (int)Modules.ID.TWM_PIPEC_0 ||
+            modId == (int)Modules.ID.TWM_PIPEC_1 ||
+            modId == (int)Modules.ID.TWM_PIPEC_1A ||
+            modId == (int)Modules.ID.TWM_PIPEC_2 ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_BOTH_ENDS ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_FRONT_END ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_SIDE_END ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_1X1_NO_ENDS ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_BOTH_ENDS ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_FRONT_END ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_SIDE_END ||
+            modId == (int)Modules.ID.TWM_PIPE_SMOOTH_TURN_2X2_NO_ENDS ||
+            modId == (int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_NO_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_FRONT_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_BACK_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_BOTTOM_BOTH_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_UP_NO_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_UP_FRONT_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_UP_BACK_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_UP_BOTH_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_15_NO_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_15_FRONT_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_15_BACK_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_15_BOTH_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_10_NO_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_10_FRONT_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_10_BACK_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_10_BOTH_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_5_NO_ENDS ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_5_FRONT_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_5_BACK_END ||
+		    modId == (int)Modules.ID.TWM_PIPE_RAMP_5_BOTH_ENDS
+        );
+    }
+
+    private static bool ModuleIsDoubleBase(int modId)
+    {
+        return (
+            modId == (int)Modules.ID.TWM_DOUBLE_STRAIGHT ||
+            modId == (int)Modules.ID.TWM_DOUBLE_SIDE_ENTRY ||
+            modId == (int)Modules.ID.TWM_DOUBLE_SIDE_ENTRY_2 ||
+            modId == (int)Modules.ID.TWM_DOUBLE_SQUARE_TURN ||
+            modId == (int)Modules.ID.TWM_DOUBLE_SQUARE_TURN_2 ||
+            modId == (int)Modules.ID.TWM_DOUBLE_ROUND_TURN ||
+            modId == (int)Modules.ID.TWM_DOUBLE_ROUND_TURN_2 ||
+            modId == (int)Modules.ID.TWM_DOUBLE_ROUND_TURN_L ||
+            modId == (int)Modules.ID.TWM_DOUBLE_ROUND_TURN_L_2 ||
+            modId == (int)Modules.ID.TWM_DOUBLE_ROUND_TURN_R ||
+            modId == (int)Modules.ID.TWM_DOUBLE_ROUND_TURN_R_2
+        );
     }
 
     private int GetUnitInCell(EditorTrackCell cell)
@@ -266,32 +348,67 @@ public partial class TrackExporter
     /*
         Export Functions 
     */
-    public void WriteInfoFile()
+    public void WriteInfoFile(bool reverseSprintTrack = false)
     {
         string formatFloat(float f) => f.ToString("F6", CultureInfo.InvariantCulture);
+        string formatInt(int i) => i.ToString(CultureInfo.InvariantCulture);
 
         var startModulePos = MakeModuleMatrix(startModule).GetColumn(3) * exportScale;
+        var endModulePos = new Vector3(0, 0, 0);
+        if (TrackFormsSprint)
+        {
+            endModulePos = MakeModuleMatrix(endModule).GetColumn(3) * exportScale;
+        }
 
         string infoTemplate = Resources.Load<TextAsset>("InfoTemplate").text;
         infoTemplate = infoTemplate.Replace("%TRACKNAME%", track.Name);
+        infoTemplate = infoTemplate.Replace("%GAMETYPE%", formatInt(TrackFormsSprint ? 4 : 0));
         infoTemplate = infoTemplate.Replace("%STARTROT%", formatFloat(startModule.Rotation * 0.25f));
         infoTemplate = infoTemplate.Replace("%INVSTARTROT%", formatFloat(ReverseDirection(startModule.Rotation) * 0.25f));
         infoTemplate = infoTemplate.Replace("%STARTPOS%", $"{formatFloat(startModulePos.x)} {formatFloat(startModulePos.y)} {formatFloat(startModulePos.z)}"); 
+        infoTemplate = infoTemplate.Replace("%ENDPOS%", $"{formatFloat(endModulePos.x)} {formatFloat(endModulePos.y)} {formatFloat(endModulePos.z)}"); 
 
-        string infoFilePath = Path.Combine(exportPath, $"{trackFolderName}.inf");
+        string infoFilePath = exportPath;
+        if (reverseSprintTrack)
+        {
+            infoFilePath = Path.Combine(infoFilePath, "reverse");
+        }
+        infoFilePath = Path.Combine(infoFilePath, $"{trackFolderName}.inf");
         File.WriteAllText(infoFilePath, infoTemplate);
     }
 
     public void WriteZonesFile()
     {
+        int getZoneIndex(int i) => TrackFormsLoop ? ((i + 1) % zoneSequence.Count) : i;
         var zonesFile = new ReVolt.Track.ZonesFile();
         
-        for(int i=0; i < zoneSequence.Count; i++)
+        if (TrackFormsSprint)
         {
-            var zone = zones[zoneSequence[(i + 1) % zoneSequence.Count].ZoneID];
+            // Add a start zone just before start grid
+            var startZone = zones[zoneSequence[0].ZoneID];
+            var startCell = track.GetCell(startZone.CellCoordinate);
+            var startModMatrix = MakeModuleMatrix(startCell.Module);
+            Vector3 sprintPreZonePos = new Vector3(0, -2500, -750);
+            sprintPreZonePos = startModMatrix.MultiplyPoint3x4(sprintPreZonePos);
+            Matrix4x4 sprintPreZoneScaleMat = Matrix4x4.Scale(new Vector3(500, 2500, 250));
+            sprintPreZoneScaleMat *= startModMatrix;
+            Vector3 sprintPreZoneScale = sprintPreZoneScaleMat.lossyScale;
+
             zonesFile.Zones.Add(new ReVolt.Track.Zone()
             {
-                ID = i,
+                ID = 0,
+                Matrix = Matrix4x4.identity,
+                Position = sprintPreZonePos,
+                Size = sprintPreZoneScale
+            });
+        }
+
+        for(int i=0; i < zoneSequence.Count; i++)
+        {
+            var zone = zones[zoneSequence[getZoneIndex(i)].ZoneID];
+            zonesFile.Zones.Add(new ReVolt.Track.Zone()
+            {
+                ID = TrackFormsSprint ? i + 1 : i,
                 Matrix = Matrix4x4.identity,
                 Position = zone.Center,
                 Size = zone.Size 
@@ -311,7 +428,8 @@ public partial class TrackExporter
     {
         var posFile = new ReVolt.Track.POSNodesFile()
         {
-            StartNodeIndex = 0,
+            StartNodeIndex = TrackFormsLoop ? 0 : SPRINT_POS_NODE_START_ID,
+            EndNodeIndex = TrackFormsLoop ? -1 : posNodes.Count - SPRINT_POS_NODE_END_REVERSE_ID,
             TotalLength = lapDistance
         };
 
@@ -325,6 +443,13 @@ public partial class TrackExporter
                 NextNodeIDs = new int[] { (i + 1) % posNodes.Count, -1, -1, -1 },
             };
             posFile.Nodes.Add(node);
+        }
+
+        if (TrackFormsSprint)
+        {
+            // Unlink end nodes
+            posFile.Nodes[0].PreviousNodeIDs[0] = -1;
+            posFile.Nodes[posFile.Nodes.Count - 1].NextNodeIDs[0] = -1;
         }
 
         if(exportScale != 1f)
@@ -420,15 +545,50 @@ public partial class TrackExporter
         Directory.CreateDirectory(exportPath);
     }
 
+    private bool FileIsNotFromFromTrackEditor(FileInfo file)
+    {
+        switch (file.Extension)
+        {
+            case ".fan":
+            case ".fob":
+            case ".inf":
+            case ".lit":
+            case ".ncp":
+            case ".pan":
+            case ".taz":
+            case ".w":
+                return false;
+            default:
+                return true;
+        }
+    }
+    // Remove only files that will be overwritten
+    // That way if user have some instances they will not be lost
     public void EmptyTrackFolderContents()
     {
         var di = new DirectoryInfo(exportPath);
         if (di.Exists)
         {
             foreach (FileInfo file in di.EnumerateFiles())
-                file.Delete();
-            foreach (DirectoryInfo dir in di.EnumerateDirectories())
-                dir.Delete(true);
+            {
+                if (file.Name.StartsWith(trackFolderName) && !FileIsNotFromFromTrackEditor(file))
+                {
+                    file.Delete();
+                }
+            }
+            //foreach (DirectoryInfo dir in di.EnumerateDirectories())
+            //    dir.Delete(true);
+            var reverseDir = new DirectoryInfo(Path.Combine(exportPath, "reverse"));
+            if (reverseDir.Exists)
+            {
+                foreach (FileInfo file in di.EnumerateFiles())
+                {
+                    if (file.Name.StartsWith(trackFolderName) && !FileIsNotFromFromTrackEditor(file))
+                    {
+                        file.Delete();
+                    }
+                }
+            }
         }
     }
 
@@ -540,7 +700,7 @@ public partial class TrackExporter
             // custom trackunits may have >1 unit pipe modules
             bool previousIsPipe = prevPlacement != null && prevPlacement.Position != originalPlacement.Position && ModuleIsPipeBase(prevPlacement.ModuleIndex);
             bool nextIsPipe = nextPlacement != null && nextPlacement.Position != originalPlacement.Position && ModuleIsPipeBase(nextPlacement.ModuleIndex);
-
+            
             if (previousIsPipe || nextIsPipe)
             {
                 // perfect, now we need to see how to weld things
@@ -550,9 +710,22 @@ public partial class TrackExporter
                 if (previousIsPipe && nextIsPipe)
                     placement.ModuleIndex = weldData.NoSides; //remove both walls
                 else if (previousIsPipe)
+                {
                     placement.ModuleIndex = (seqEntry.Forwards) ? weldData.NoEntry : weldData.NoExit; //remove front wall
+                }
                 else if (nextIsPipe)
-                    placement.ModuleIndex = (seqEntry.Forwards) ? weldData.NoExit : weldData.NoEntry; //remove back wall
+                {
+                    // because trackunits may have >1 unit
+                    // we must not erase flags already set
+                    if (placement.ModuleIndex == weldData.NoExit || placement.ModuleIndex == weldData.NoEntry)
+                    {
+                        placement.ModuleIndex = weldData.NoSides;
+                    }
+                    else
+                    {
+                        placement.ModuleIndex = (seqEntry.Forwards) ? weldData.NoExit : weldData.NoEntry; //remove back wall
+                    }
+                }
             }
         }
     }
@@ -570,14 +743,12 @@ public partial class TrackExporter
             }
             else
             {
-                placement.ModuleIndex = Modules.Lookup.Changes[placement.ModuleIndex].Reverse;
-
-                if ((placement.ModuleIndex >= (int)Modules.ID.TWM_DIP_R && placement.ModuleIndex <= (int)Modules.ID.TWM_HUMP_XT_2)
-                    || placement.ModuleIndex == (int)Modules.ID.TWM_RAMP_00_2)
+                if (Modules.Lookup.Changes[placement.ModuleIndex].HasSingleDirectionVariant())
                 {
                     placement.Rotation = ReverseDirection(placement.Rotation);
                 }
 
+                placement.ModuleIndex = Modules.Lookup.Changes[placement.ModuleIndex].Reverse;
             }
         }
     }
@@ -586,6 +757,27 @@ public partial class TrackExporter
     {
         foreach (var moduleRootPlacement in track.GetAllModuleRootPlacements())
         {
+            if (reversed)
+            {
+                if (moduleRootPlacement.ModuleIndex == (int)Modules.ID.TWM_JUMP)
+                {
+                    moduleRootPlacement.Rotation = ReverseDirection(moduleRootPlacement.Rotation);
+                }
+            }
+            // if (reverseSprintTrack)
+            // {
+            //     if (moduleRootPlacement.ModuleIndex == (int)Modules.ID.TWM_START)
+            //     {
+            //         // module = unitFile.Modules[(int)Modules.ID.TWM_FINISH];
+            //         moduleRootPlacement.Rotation = ReverseDirection(moduleRootPlacement.Rotation);
+            //     }
+            //     else if (moduleRootPlacement.ModuleIndex == (int)Modules.ID.TWM_FINISH)
+            //     {
+            //         // module = unitFile.Modules[(int)Modules.ID.TWM_START];
+            //         moduleRootPlacement.Rotation = ReverseDirection(moduleRootPlacement.Rotation);
+            //     }
+            // }
+
             var module = unitFile.Modules[moduleRootPlacement.ModuleIndex];
             var modMatrix = MakeModuleMatrix(moduleRootPlacement);
 
@@ -603,6 +795,7 @@ public partial class TrackExporter
                 };
 
                 zone.IsPipe = ModuleIsPipeBase(moduleRootPlacement.ModuleIndex);
+                zone.IsDouble = ModuleIsDoubleBase(moduleRootPlacement.ModuleIndex);
 
                 if (moduleRootPlacement.Rotation == (int)Modules.Direction.East
                     || moduleRootPlacement.Rotation == (int)Modules.Direction.West)
@@ -615,17 +808,30 @@ public partial class TrackExporter
         }
     }
 
-    bool FindNextZone(int currentZoneIndex, int currentLink, out int nextZoneIndex, out int nextLinkIndex)
+    bool CheckForFinishLine(int currentZoneIndex)
     {
-        bool found = false;
+        var currentZone = zones[currentZoneIndex];
+        var currentModule = track.GetCell(currentZone.CellCoordinate).Module;
+        bool isFinishLine = currentModule.ModuleIndex == (int)Modules.ID.TWM_FINISH;
+        if (isFinishLine)
+        {
+            TrackFormsSprint = true;
+            endModule = currentModule;
+        }
+        return isFinishLine;
+    }
+
+    bool FindNextZone(int currentZoneIndex, int currentLink, out int nextZoneIndex, out int nextLinkIndex, out bool nextIsDouble)
+    {
         nextZoneIndex = -1;
         nextLinkIndex = -1;
+        nextIsDouble = false;
 
         //
         var currentZone = zones[currentZoneIndex];
         var currentLinkPos = currentZone.Links[currentLink];
 
-        float distanceThreshold = 0.25f;
+        float distanceThreshold = 25.0f; // was set to 0.25f but precision in 3dsmax can lead to more than 1.f variations
 
         for (int i = 0; i < zones.Count; i++)
         {
@@ -645,23 +851,24 @@ public partial class TrackExporter
                         {
                             nextZoneIndex = i;
                             nextLinkIndex = link;
-                            found = true;
+                            return true;
                         }
                     }
                     else
                     {
-                        if (currentLinkPos.y <= linkPos.y)
+                        if ((currentLinkPos.y - linkPos.y) < distanceThreshold)
                         {
                             nextZoneIndex = i;
                             nextLinkIndex = link;
-                            found = true;
+                            nextIsDouble = otherZone.IsDouble;
+                            return true;
                         }
                     }
                 }
             }
         }
 
-        return found;
+        return false;
     }
 
     private void DetermineZoneSequence()
@@ -692,13 +899,16 @@ public partial class TrackExporter
 
         var firstPosNode = startZone.Links[1] + ((startZone.Links[0] - startZone.Links[1]) / 100f);
         posNodes.Add(firstPosNode);
+        var firstPosNodeForSprintTrack = startZone.Links[0];
 
         //try and create a loop!
         int currentZoneIndex = startZoneIndex;
         int currentLink = 1;
+        bool currentIsDouble = false;
 
         int nextZoneIndex = -1;
         int nextLink = 0;
+        bool nextIsDouble = false;
 
         bool jumped = false;
 
@@ -719,16 +929,36 @@ public partial class TrackExporter
 
             float slope = currentZone.Links[1-currentLink].y - currentZone.Links[currentLink].y;
             jumped = (slope > (10f * RVConstants.GameScale));
-            posNodes.Add(currentZone.Links[currentLink]);
-
-            if(FindNextZone(currentZoneIndex, currentLink, out nextZoneIndex, out nextLink))
+            // Double modules introduced an issue with U turns: too sharp angle between nodes. To mitigate this we replace ends nodes by center nodes
+            if (currentIsDouble)
             {
+                posNodes.Add(0.5f * (currentZone.Links[currentLink] + currentZone.Links[1 - currentLink])); // Add a pos node inbetween each node of double modules
+            }
+
+            if(FindNextZone(currentZoneIndex, currentLink, out nextZoneIndex, out nextLink, out nextIsDouble))
+            {
+                if (!(nextIsDouble && currentIsDouble))
+                {
+                    posNodes.Add(currentZone.Links[currentLink]); // Dont add a pos node inbetween each double modules.
+                }
                 currentZoneIndex = nextZoneIndex;
                 currentLink = (1 - nextLink);
+                currentIsDouble = nextIsDouble;
+
+                if (jumped)
+                {
+                    posNodes[posNodes.Count - 1] = zones[nextZoneIndex].Links[nextLink];
+                }
+            }
+            else if (CheckForFinishLine(currentZoneIndex))
+            {
+                posNodes.Add(currentZone.Links[currentLink]);
+                posNodes.Add(currentZone.Links[currentLink] + ((currentZone.Links[currentLink] - currentZone.Links[1 - currentLink]) / 2f)); // Add one after finish line
+                break;
             }
             else
             {
-                // track doesn't form a loop
+                // track doesn't form a loop or a sprint race
                 break;
             }
 
@@ -737,12 +967,17 @@ public partial class TrackExporter
                 break;
         }
 
-        if (jumped)
-        {
-            posNodes[posNodes.Count - 1] = startZone.Links[1 - currentLink];
-        }
+        //if (jumped)
+        //{
+        //    posNodes[posNodes.Count - 1] = startZone.Links[1 - currentLink];
+        //}
 
         TrackFormsLoop = (nextZoneIndex == startZoneIndex);
+
+        if (TrackFormsSprint)
+        {
+            posNodes.Insert(0, firstPosNodeForSprintTrack);
+        }
     }
 
     public int GetStartGridCount()
@@ -758,10 +993,20 @@ public partial class TrackExporter
         var perfLogger = new PerfTimeLogger("Export");
 
         // locate the start module
-        startModule = track.GetAllModuleRootPlacements().FirstOrDefault(x => x.ModuleIndex == (int)Modules.ID.TWM_START);
-        if (startModule != null && reversed)
+        if (startModule != null && endModule != null && reverseSprintTrack)
         {
+            startModule.ModuleIndex = (int)Modules.ID.TWM_START;
             startModule.Rotation = ReverseDirection(startModule.Rotation);
+            endModule.ModuleIndex = (int)Modules.ID.TWM_FINISH;
+            endModule.Rotation = ReverseDirection(endModule.Rotation);
+        }
+        else
+        {
+            startModule = track.GetAllModuleRootPlacements().FirstOrDefault(x => x.ModuleIndex == (int)Modules.ID.TWM_START);
+            if (startModule != null && reversed)
+            {
+                startModule.Rotation = ReverseDirection(startModule.Rotation);
+            }
         }
 
         // create wall matrices which will be shared between mesh/collision exporting
@@ -808,22 +1053,45 @@ public partial class TrackExporter
 
         // calculate lap length and pos node distances
         lapDistance = 0f;
-        for (int i = 0; i < posNodes.Count; i++)
+        if (TrackFormsSprint)
         {
-            posNodeDistances.Add(lapDistance);
-            lapDistance += Vector3.Distance(posNodes[i], posNodes[(i + 1) % posNodes.Count]);
+            for (int i = 0; i < SPRINT_POS_NODE_START_ID; i++)
+            {
+                posNodeDistances.Add(lapDistance);
+            }
+            for (int i = SPRINT_POS_NODE_START_ID; i < posNodes.Count - SPRINT_POS_NODE_END_REVERSE_ID; i++)
+            {
+                posNodeDistances.Add(lapDistance);
+                lapDistance += Vector3.Distance(posNodes[i], posNodes[(i + 1) % posNodes.Count]);
+            }
+            for (int i = posNodes.Count - SPRINT_POS_NODE_END_REVERSE_ID; i < posNodes.Count; i++)
+            {
+                posNodeDistances.Add(lapDistance);
+            }
+            for (int i = SPRINT_POS_NODE_START_ID + 1; i < posNodes.Count - SPRINT_POS_NODE_END_REVERSE_ID; i++)
+                posNodeDistances[i] = lapDistance - posNodeDistances[i];
+            for (int i = posNodes.Count - SPRINT_POS_NODE_END_REVERSE_ID; i < posNodes.Count; i++)
+                posNodeDistances[i] = 0f;
         }
-        for (int i = 1; i < posNodes.Count; i++)
-            posNodeDistances[i] = lapDistance - posNodeDistances[i];
+        else // TrackFormsLoop
+        {
+            for (int i = 0; i < posNodes.Count; i++)
+            {
+                posNodeDistances.Add(lapDistance);
+                lapDistance += Vector3.Distance(posNodes[i], posNodes[(i + 1) % posNodes.Count]);
+            }
+            for (int i = 1; i < posNodes.Count; i++)
+                posNodeDistances[i] = lapDistance - posNodeDistances[i];
+        }
         
         perfLogger.Log("Initialize");
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, float scale = 1f) : this(track, unitFile, false, scale)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, float scale = 1f) : this(track, unitFile, false, scale, false)
     {
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, float scale = 1f)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, float scale = 1f, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
     {
         this.trackFolderName = FileHelper.TrackNameToExportDirectory(track.Name);
         this.originalTrack = track;
@@ -837,5 +1105,12 @@ public partial class TrackExporter
         this.track = track.Clone(false);
         this.exportScale = scale;
         this.reversed = reversed;
+        this.reverseSprintTrack = reverseSprintTrack;
+
+        if (startModule != null && endModule != null)
+        {
+            this.startModule = this.track.GetAllModuleRootPlacements().FirstOrDefault(x => x.RootCell.Position == startModule.RootCell.Position);
+            this.endModule = this.track.GetAllModuleRootPlacements().FirstOrDefault(x => x.RootCell.Position == endModule.RootCell.Position);
+        }
     }
 }

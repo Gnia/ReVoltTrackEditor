@@ -62,6 +62,7 @@ namespace ReVolt.Track
         public readonly List<POSNode> Nodes = new List<POSNode>();
         public float TotalLength;
         public int StartNodeIndex;
+        public int EndNodeIndex;
 
         public void Scale(float scale)
         {
@@ -109,6 +110,11 @@ namespace ReVolt.Track
 
             for (int i = 0; i < Nodes.Count; i++)
                 Nodes[i].WriteBinary(writer);
+            
+            if (EndNodeIndex >= 0)
+            {
+                writer.Write(EndNodeIndex);
+            }
         }
 
         // constructors

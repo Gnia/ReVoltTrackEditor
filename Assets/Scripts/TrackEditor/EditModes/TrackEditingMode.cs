@@ -32,6 +32,7 @@ public class TrackEditingMode : EditorMode
     private GameObject placedPiecesParent;
 
     // cursor
+    private double timeSinceLastCursorUpdate;
     public Vector2Int CursorPosition
     {
         get
@@ -83,6 +84,7 @@ public class TrackEditingMode : EditorMode
     {
         for (int i = 0; i < moduleObjects.Count; i++)
             moduleObjects[i].SetActive(i == activeModuleIndex);
+        ResetModuleFlash();
         UpdateActiveModule();
     }
 
@@ -132,6 +134,8 @@ public class TrackEditingMode : EditorMode
         }
 
         TrackEditor.Track.MarkDirty();
+
+        ResetModuleFlash();
     }
 
     // Placement and editing helpers
@@ -171,6 +175,7 @@ public class TrackEditingMode : EditorMode
     {
         TrackEditor.PlaySound(TrackEditor.SndMenuMove);
         CursorPosition += positionChange.Rotate(cameraRotationTurns);
+        ResetModuleFlash();
     }
 
     public void AdjustCursorHeight(int heightChange)
@@ -187,6 +192,7 @@ public class TrackEditingMode : EditorMode
             TrackEditor.PlaySound((heightChange > 0) ? TrackEditor.SndRaise : TrackEditor.SndLower);
             editingCursorHeightSteps = wantedHeight;
         }
+        ResetModuleFlash();
     }
 
     public void RotateCamera(int rotateAmount)
@@ -201,6 +207,7 @@ public class TrackEditingMode : EditorMode
         TrackEditor.PlaySound(TrackEditor.SndRotate);
         moduleRotationTurns += rotateAmount;
         moduleRotationTurns = (moduleRotationTurns < 0) ? 3 : moduleRotationTurns % 4;
+        ResetModuleFlash();
     }
 
     public void NextVariant()
@@ -215,6 +222,7 @@ public class TrackEditingMode : EditorMode
         {
             TrackEditor.PlaySound(TrackEditor.SndWarning);
         }
+        ResetModuleFlash();
     }
 
     public void PreviousVariant()
@@ -229,6 +237,7 @@ public class TrackEditingMode : EditorMode
         {
             TrackEditor.PlaySound(TrackEditor.SndWarning);
         }
+        ResetModuleFlash();
     }
 
     public void PlaceModule()
@@ -274,7 +283,7 @@ public class TrackEditingMode : EditorMode
         {
             TrackEditor.PlaySound(TrackEditor.SndWarning);
         }
-        
+        ResetModuleFlash();
     }
 
     public void ToggleSurface()
@@ -292,9 +301,13 @@ public class TrackEditingMode : EditorMode
     }
 
     // Other
+    private void ResetModuleFlash()
+    {
+        timeSinceLastCursorUpdate = Time.timeSinceLevelLoadAsDouble;
+    }
     private void UpdateModuleFlash()
     {
-        bool currentActive = (Time.timeSinceLevelLoadAsDouble % 1d) >= 0.5;
+        bool currentActive = ((Time.timeSinceLevelLoadAsDouble - timeSinceLastCursorUpdate) % 1d) < 0.5;
         activeModule.SetActive(currentActive);
 
         // set every object on the grid to visible

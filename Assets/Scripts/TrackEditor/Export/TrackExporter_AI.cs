@@ -29,7 +29,7 @@ public partial class TrackExporter
     public Vector2Int LastAICell { get; private set; }
 
     const float AIMergeThreshold =  20f;
-    const float AIHeightMergeThreshold = 250f;
+    const float AIHeightMergeThreshold = 0.25f;
 
     private readonly List<ReVolt.TrackUnit.AINode> processedAiNodes = new List<ReVolt.TrackUnit.AINode>(1024);
 
@@ -50,18 +50,25 @@ public partial class TrackExporter
         }
     }
 
-    private bool CheckNodeMatch(Vector3 next, Vector3 current)
+    private bool IsJumpModule(in int ModuleIndex)
     {
-        return next.y >= current.y && Vector2.Distance(next.ToVec2XZ(), current.ToVec2XZ()) <= AIMergeThreshold;
+        return ModuleIndex == (int)Modules.ID.TWM_JUMP;
+    }
+    private bool CheckNodeMatch(Vector3 next, Vector3 current, in bool isJump)
+    {
+        bool isWithinXYRange = Vector2.Distance(next.ToVec2XZ(), current.ToVec2XZ()) <= AIMergeThreshold;
+        return isJump ? isWithinXYRange : isWithinXYRange && (current.y - next.y) < AIHeightMergeThreshold;
     }
 
     private bool CheckNodeMatch(Vector3 lastGreenPos, Vector3 lastRedPos, ModulePlacement nextModule, 
-                                out int routeIndex, out bool flipped, out int direction, out float heightDelta)
+                                out int routeIndex, out bool flipped, out int direction, out float heightDelta,
+                                in bool prevWasJump, out bool wasReallyJump)
     {
         direction = 0;
         routeIndex = -1;
         flipped = false;
         heightDelta = 0f;
+        wasReallyJump = false;
 
         var module = unitFile.Modules[nextModule.ModuleIndex];
         var modMatrix = MakeModuleMatrix(nextModule);
@@ -76,16 +83,18 @@ public partial class TrackExporter
                 Vector3 greenPos = modMatrix.MultiplyPoint3x4(checkNode.GreenPosition);
                 Vector3 redPos = modMatrix.MultiplyPoint3x4(checkNode.RedPosition);
 
-                if (CheckNodeMatch(greenPos, lastRedPos) || CheckNodeMatch(redPos, lastGreenPos))
+                if (CheckNodeMatch(greenPos, lastRedPos, prevWasJump) || CheckNodeMatch(redPos, lastGreenPos, prevWasJump))
                 {
                     heightDelta = ((lastRedPos.y - greenPos.y) + (lastGreenPos.y - redPos.y)) / 2f;
+                    wasReallyJump = prevWasJump && heightDelta > 0f;
                     direction = (j == 0) ? 1 : -1;
                     flipped = true;
                     return true;
                 }
-                else if (CheckNodeMatch(redPos, lastRedPos) || CheckNodeMatch(greenPos, lastGreenPos))
+                else if (CheckNodeMatch(redPos, lastRedPos, prevWasJump) || CheckNodeMatch(greenPos, lastGreenPos, prevWasJump))
                 {
                     heightDelta = ((lastRedPos.y - redPos.y) + (lastGreenPos.y - greenPos.y)) / 2f;
+                    wasReallyJump = prevWasJump && heightDelta > 0f;
                     direction = (j == 0) ? 1 : -1;
                     flipped = false;
                     return true;
@@ -109,6 +118,7 @@ public partial class TrackExporter
 
         Vector3 lastGreenPos = Vector3.zero;
         Vector3 lastRedPos = Vector3.zero;
+        bool lastWasJump = false;
         
         var startZone = zones[zoneSequence[0].ZoneID];
         var startCell = track.GetCell(startZone.CellCoordinate);
@@ -136,7 +146,7 @@ public partial class TrackExporter
             LastAICell = placement.Position;
 
             // if this fails, there has been a continuity error
-            if (!CheckNodeMatch(lastGreenPos, lastRedPos, placement, out int routeIndex, out bool flipped, out int direction, out float heightDelta) )
+            if (!CheckNodeMatch(lastGreenPos, lastRedPos, placement, out int routeIndex, out bool flipped, out int direction, out float heightDelta, lastWasJump, out bool lastWasReallyJump))
             {
                 Debug.LogError($"AI Continuity Error");
                 AIIsValid = false;
@@ -152,9 +162,21 @@ public partial class TrackExporter
                 //merge and blend if first
                 if (first)
                 {
+                    // If jump really occured, modify first AI priority to JumpWall
+                    // Dont rely solely on Jump Module index but also on height difference:
+                    // we dont want to alter slowDown priorities if not necessary
+                    var currentPriority = lastWasReallyJump ? ReVolt.Track.AINodePriority.JumpWall : node.Priority;
                     first = false;
                     processedAiNodes[AINodeCount - 1].RacingLine = (processedAiNodes[AINodeCount - 1].RacingLine + node.RacingLine) / 2f;
-                    processedAiNodes[AINodeCount - 1].Priority = node.Priority;
+                    processedAiNodes[AINodeCount - 1].Priority = currentPriority;
+
+                    if (lastWasReallyJump)
+                    {
+                        lastRedPos = modMatrix.MultiplyPoint3x4(node.RedPosition);
+                        lastGreenPos = modMatrix.MultiplyPoint3x4(node.GreenPosition);
+                        processedAiNodes[AINodeCount - 1].RedPosition = lastRedPos;
+                        processedAiNodes[AINodeCount - 1].GreenPosition = lastGreenPos;
+                    }
                     continue;
                 }
 
@@ -164,15 +186,29 @@ public partial class TrackExporter
                 processedAiNodes.Add(new ReVolt.TrackUnit.AINode() { GreenPosition = lastGreenPos, RedPosition = lastRedPos, 
                                                                      RacingLine = node.RacingLine, Priority = node.Priority });
             }
+
+            lastWasJump = IsJumpModule(placement.ModuleIndex);
         }
 
         // check if a valid loop has been made
-        // count > start module node count && end == start
-        AIIsValid = processedAiNodes.Count > 2 && CheckNodeMatch(processedAiNodes[0].RedPosition, processedAiNodes[processedAiNodes.Count - 1].RedPosition)
-                                               && CheckNodeMatch(processedAiNodes[0].GreenPosition, processedAiNodes[processedAiNodes.Count - 1].GreenPosition);
+        // count > start module node count
+        AIIsValid = processedAiNodes.Count > 2;
+        if (!TrackFormsSprint)
+        {
+            // In case we jumped, didnt bother check if JumpWall property is needed
+            // it wont change anything on straight start grid
+            // (Priority should be set on RacingLine wich should not change anything in AI speed)
+            if (lastWasJump)
+            {
+                processedAiNodes[0].Priority = ReVolt.Track.AINodePriority.JumpWall;
+            }
+            // check end == start
+            AIIsValid &= CheckNodeMatch(processedAiNodes[0].RedPosition, processedAiNodes[processedAiNodes.Count - 1].RedPosition, lastWasJump)
+                      && CheckNodeMatch(processedAiNodes[0].GreenPosition, processedAiNodes[processedAiNodes.Count - 1].GreenPosition, lastWasJump);
 
-        // remove last node, it's on top of the first node
-        processedAiNodes.RemoveAt(processedAiNodes.Count - 1);
+            // remove last node, it's on top of the first node
+            processedAiNodes.RemoveAt(processedAiNodes.Count - 1);
+        }
 
         perfLogger.Log("Create");
     }
@@ -212,6 +248,13 @@ public partial class TrackExporter
             };
 
             aiNodesFile.Nodes.Add(fileNode);
+        }
+
+        if (TrackFormsSprint)
+        {
+            // Unlink end nodes
+            aiNodesFile.Nodes[0].PreviousLinkIDs[0] = -1;
+            aiNodesFile.Nodes[aiNodesFile.Nodes.Count - 1].NextLinkIDs[0] = -1;
         }
 
         if(exportScale != 1f)

@@ -113,12 +113,19 @@ public enum LocString
     MODULE_BRIDGE,
     MODULE_CROSSROAD,
     MODULE_JUMP,
-    MODULE_CHICANE
+    MODULE_CHICANE,
+    MODULE_BEND,
+    MODULE_DOUBLE,
+
+    ANSWER_0_75,
+    ANSWER_1_25,
+    ANSWER_1_5,
+    ANSWER_1_75
 }
 
 public class Localization
 {
-    private const int EXPECTED_STRING_COUNT = 60;
+    private const int EXPECTED_STRING_COUNT = 66;
     private readonly static Dictionary<LocString, string> loaded = new Dictionary<LocString, string>();
 
     private static string ProcessLine(string line)

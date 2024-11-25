@@ -53,7 +53,7 @@ public class ExportMode : EditorMode
     // Other
     private void AskTrackScale()
     {
-        TrackEditor.Prompt.InitQuestionPrompt(LocString.PROMPT_EXPORT_CHOOSE_SCALE, 1,
+        TrackEditor.Prompt.InitQuestionPrompt(LocString.PROMPT_EXPORT_CHOOSE_SCALE, 2,
             () =>
             {
                 TrackEditor.SetEditMode<TrackEditingMode>();
@@ -64,10 +64,34 @@ public class ExportMode : EditorMode
                 exportScale = 0.5f;
                 TrackEditor.SetEditMode<ExportMode>();
             }),
+            new PromptMode.PromptItem(LocString.ANSWER_0_75, () =>
+            {
+                askedTrackScale = true;
+                exportScale = 0.75f;
+                TrackEditor.SetEditMode<ExportMode>();
+            }),
             new PromptMode.PromptItem(LocString.ANSWER_REGULAR, () =>
             {
                 askedTrackScale = true;
                 exportScale = 1f;
+                TrackEditor.SetEditMode<ExportMode>();
+            }),
+            new PromptMode.PromptItem(LocString.ANSWER_1_25, () =>
+            {
+                askedTrackScale = true;
+                exportScale = 1.25f;
+                TrackEditor.SetEditMode<ExportMode>();
+            }),
+            new PromptMode.PromptItem(LocString.ANSWER_1_5, () =>
+            {
+                askedTrackScale = true;
+                exportScale = 1.5f;
+                TrackEditor.SetEditMode<ExportMode>();
+            }),
+            new PromptMode.PromptItem(LocString.ANSWER_1_75, () =>
+            {
+                askedTrackScale = true;
+                exportScale = 1.75f;
                 TrackEditor.SetEditMode<ExportMode>();
             }),
             new PromptMode.PromptItem(LocString.ANSWER_DOUBLE, () =>
@@ -104,7 +128,7 @@ public class ExportMode : EditorMode
     void ContinuityError(TrackExporter exporter)
     {
         // set cursor pos
-        if (!exporter.TrackFormsLoop)
+        if (!(exporter.TrackFormsLoop || exporter.TrackFormsSprint))
         {
             //set cursor pos to last zone
             EditingMode.SetActiveModule((int)Modules.ID.TWM_START);
@@ -118,19 +142,19 @@ public class ExportMode : EditorMode
         }
 
         // throw an error
-        LocString errorMesage;
+        LocString errorMessage;
         if (exporter.ZoneSequence.Count > 0)
         {
-            errorMesage = (exporter.LastZoneIsPipe) ? LocString.PROMPT_NO_LOOP_FORMED_PIPE_C
+            errorMessage = (exporter.LastZoneIsPipe) ? LocString.PROMPT_NO_LOOP_FORMED_PIPE_C
                                                     : LocString.PROMPT_NO_LOOP_FORMED_STEP_C;
         }
         else
         {
-            errorMesage = (exporter.LastZoneIsPipe) ? LocString.PROMPT_NO_LOOP_FORMED_PIPE
+            errorMessage = (exporter.LastZoneIsPipe) ? LocString.PROMPT_NO_LOOP_FORMED_PIPE
                                                     : LocString.PROMPT_NO_LOOP_FORMED_STEP;
         }
 
-        TrackEditor.Prompt.InitWarningPrompt(errorMesage, TrackEditor.Instance.SetTrackEditingMode);
+        TrackEditor.Prompt.InitWarningPrompt(errorMessage, TrackEditor.Instance.SetTrackEditingMode);
         TrackEditor.ShowPrompt();
     }
 
@@ -164,7 +188,7 @@ public class ExportMode : EditorMode
             yield break;
         }
 
-        if (!exporter.TrackFormsLoop)
+        if (!(exporter.TrackFormsLoop || exporter.TrackFormsSprint))
         {
             ContinuityError(exporter);
             yield break;
@@ -183,11 +207,15 @@ public class ExportMode : EditorMode
 
         // Track is valid
         // Create reversed exporter
-        var reverseExporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, true, exportScale);
+        var reverseExporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, true, exportScale,
+            exporter.TrackFormsSprint,
+            exporter.TrackFormsSprint ? exporter.GetEndModule() : null, // new startModule
+            exporter.TrackFormsSprint ? exporter.GetStartModule() : null // new endModule
+            );
         reverseExporter.Initialize();
         reverseExporter.CreateAINodes();
 
-        if (!reverseExporter.TrackFormsLoop || !reverseExporter.AIIsValid)
+        if (!(reverseExporter.TrackFormsLoop || reverseExporter.TrackFormsSprint) || !reverseExporter.AIIsValid)
             reverseExporter = null; // can't export reverse, set to null
 
         // Create and empty destination folder
@@ -238,6 +266,7 @@ public class ExportMode : EditorMode
         // Finally, copy textures and write info file
         exporter.CopyBitmaps();
         exporter.WriteInfoFile();
+        reverseExporter?.WriteInfoFile();
 
         perfLogger.Log("Total");
         SetExportProgress(1f);

@@ -22,7 +22,7 @@ public class RVConstants
     public const float GameScale = 250f;
     public const int GOURAUD_SHIFTED = 0x8000;
 
-    public const int TPAGE_COUNT = 8;
+    public const int TPAGE_COUNT = 9;
 
     public const int PEG_INDEX = 0;
     public const int PAN_INDEX = 1;

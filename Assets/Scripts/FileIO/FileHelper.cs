@@ -233,26 +233,48 @@ public static class FileHelper
            || Application.platform == RuntimePlatform.OSXPlayer) || ApplicationHelper.isEditor)
         {
             // our files exist alongside the executable on other platforms
-#if UNITY_EDITOR
-            if (!File.Exists("editor_path.txt"))
+            if (File.Exists("editor_path.txt"))
             {
-                Debug.LogError($"Please create editor_path.txt in the project root.");
+                var ep = File.ReadAllText("editor_path.txt");
+                if (Directory.Exists(ep))
+                {
+                    rootPath = ep;
+                }
+            }
+            if (rootPath == null)
+            {
+#if UNITY_EDITOR
+                Debug.LogError($"Please create editor_path.txt in the project root with path to editor files.");
                 UnityEditor.EditorApplication.isPlaying = false;
                 return;
-            }
-            rootPath = File.ReadAllText("editor_path.txt");
 #else
-            rootPath = System.Environment.CurrentDirectory;
+                rootPath = System.Environment.CurrentDirectory;
 #endif
+            }
 
-            // look for Re-Volt in the parent folder
-            var rootDirInfo = new DirectoryInfo(rootPath);
-            if (rootDirInfo.Parent != null)
+            if (File.Exists("game_path.txt"))
             {
-                if (Directory.Exists(Path.Combine(rootDirInfo.Parent.FullName, "levels")) &&
-                    Directory.Exists(Path.Combine(rootDirInfo.Parent.FullName, "editor")))
+                var gp = File.ReadAllText("game_path.txt");
+                if (Directory.Exists(gp))
                 {
-                    gamePath = rootDirInfo.Parent.FullName;
+                    var rootDirInfo = new DirectoryInfo(gp);
+                    if (Directory.Exists(Path.Combine(rootDirInfo.Parent.FullName, "levels")))
+                    {
+                        gamePath = gp;
+                    }
+                }
+            }
+            if (gamePath == null)
+            {
+                // look for Re-Volt in the parent folder
+                var rootDirInfo = new DirectoryInfo(rootPath);
+                if (rootDirInfo.Parent != null)
+                {
+                    if (Directory.Exists(Path.Combine(rootDirInfo.Parent.FullName, "levels")) &&
+                        Directory.Exists(Path.Combine(rootDirInfo.Parent.FullName, "editor")))
+                    {
+                        gamePath = rootDirInfo.Parent.FullName;
+                    }
                 }
             }
         }

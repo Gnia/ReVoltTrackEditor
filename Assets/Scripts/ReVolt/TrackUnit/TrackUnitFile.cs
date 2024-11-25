@@ -17,8 +17,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 namespace ReVolt.TrackUnit
@@ -26,8 +28,9 @@ namespace ReVolt.TrackUnit
     public class TrackUnitFile : IBinSerializable
     {
         public const int MAX_MODULE_ROUTES = 2;
-        private const int MAGIC = 0x20555452;
+        private readonly byte[] HEADER = Encoding.Default.GetBytes("RTU ");
         private const ushort VERSION = 13;
+        private const ushort TARGET = 2; // set to 2 with new modules update
 
         public readonly List<Vector3> Vertices = new List<Vector3>();
         public readonly List<Vector2> UVs = new List<Vector2>();
@@ -46,12 +49,15 @@ namespace ReVolt.TrackUnit
 
         public void ReadBinary(BinaryReader reader)
         {
-            int magic = reader.ReadInt32();
+            byte[] header = reader.ReadBytes(4);
             ushort version = reader.ReadUInt16();
-            if (magic != MAGIC)
-                throw new InvalidDataException("Incorrect RTU magic.");
-            if (version != VERSION)
-                throw new InvalidDataException("Incorrect trackunit version.");
+            ushort target = reader.ReadUInt16();
+            var headerStr = Encoding.Default.GetString(header);
+            var HEADERStr = Encoding.Default.GetString(HEADER);
+            if (headerStr != HEADERStr)
+                throw new InvalidDataException("Incorrect RTU header.");
+            if (version != VERSION || target != TARGET)
+                throw new InvalidDataException("RTU file version mismatch: found " + version.ToString() + "." + target.ToString() + ". Requires version " + VERSION.ToString() + "." + TARGET.ToString() + ".");
 
             Vertices.Clear();
             UVs.Clear();
@@ -62,8 +68,6 @@ namespace ReVolt.TrackUnit
             PolySets.Clear();
             Units.Clear();
             Modules.Clear();
-
-            reader.BaseStream.Seek(2, SeekOrigin.Current); // unused VALID_TARGETS?
 
             int vertexCount = reader.ReadUInt16();
             for (int i = 0; i < vertexCount; i++)
@@ -152,11 +156,10 @@ namespace ReVolt.TrackUnit
 
         public void WriteBinary(BinaryWriter writer)
         {
-            writer.Write(MAGIC);
+            writer.Write(HEADER);
             writer.Write(VERSION);
+            writer.Write(TARGET);
             
-            writer.Write((ushort)1); // unused VALID_TARGETS?
-
             writer.Write((ushort)Vertices.Count);
             for(int i=0; i < Vertices.Count; i++)
             {

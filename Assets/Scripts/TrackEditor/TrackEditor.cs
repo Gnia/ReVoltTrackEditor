@@ -92,7 +92,7 @@ public class TrackEditor : MonoBehaviour
     private void ReplaceImage(Texture2D image, string imagePath)
     {
         var newImage = TextureCache.Get(imagePath).ChromaKey(new Color32(0, 0, 0, 255));
-        image.Resize(newImage.width, newImage.height);
+        image.Reinitialize(newImage.width, newImage.height);
         image.SetPixels32(newImage.GetPixels32());
         image.Apply(true);
     }

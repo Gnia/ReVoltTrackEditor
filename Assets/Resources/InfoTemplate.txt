@@ -3,10 +3,12 @@
 ;----------------------------
 
 NAME            'User-%TRACKNAME%'
+GAMETYPE        %GAMETYPE%
 STARTPOS        %STARTPOS%
 STARTPOSREV     %STARTPOS%
 STARTROT        %STARTROT%
 STARTROTREV     %INVSTARTROT%
+ENDPOS          %ENDPOS%
 STARTGRID       3
 STARTGRIDREV    3
 FARCLIP         10000

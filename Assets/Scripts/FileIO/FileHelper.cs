@@ -258,7 +258,7 @@ public static class FileHelper
                 if (Directory.Exists(gp))
                 {
                     var rootDirInfo = new DirectoryInfo(gp);
-                    if (Directory.Exists(Path.Combine(rootDirInfo.Parent.FullName, "levels")))
+                    if (Directory.Exists(Path.Combine(rootDirInfo.FullName, "levels")))
                     {
                         gamePath = gp;
                     }

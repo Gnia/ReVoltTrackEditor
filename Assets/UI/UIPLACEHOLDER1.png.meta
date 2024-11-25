@@ -93,7 +93,7 @@ TextureImporter:
       213: -323943460900179666
     second: PromptWire_R
   externalObjects: {}
-  serializedVersion: 11
+  serializedVersion: 12
   mipmaps:
     mipMapMode: 0
     enableMipMap: 0
@@ -110,10 +110,12 @@ TextureImporter:
     externalNormalMap: 0
     heightScale: 0.25
     normalMapFilter: 0
+    flipGreenChannel: 0
   isReadable: 1
   streamingMipmaps: 0
   streamingMipmapsPriority: 0
   vTOnly: 0
+  ignoreMipmapLimit: 0
   grayScaleToAlpha: 0
   generateCubemap: 6
   cubemapConvolution: 0
@@ -152,6 +154,8 @@ TextureImporter:
   textureFormatSet: 0
   ignorePngGamma: 0
   applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 1
   platformSettings:
   - serializedVersion: 3
     buildTarget: DefaultTexturePlatform
@@ -163,6 +167,7 @@ TextureImporter:
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
+    ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 3
@@ -175,6 +180,7 @@ TextureImporter:
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
+    ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 3
@@ -187,6 +193,7 @@ TextureImporter:
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
+    ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 3
@@ -199,6 +206,20 @@ TextureImporter:
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
@@ -844,9 +865,39 @@ TextureImporter:
     edges: []
     weights: []
     secondaryTextures: []
-  spritePackingTag: 
+    nameFileIdTable:
+      InputBackground: 1412603954180610538
+      InputFieldBackground: -7103104959039017573
+      MainUIBottom: -9082478152903041954
+      MainUIBottomFiller: 6215846018157921881
+      MainUICornerBL: -4885432092683095345
+      ModuleItemBGLeft: -4463242313029458022
+      ModuleItemBGRight: -3939860055931080432
+      Module_PAVEMENT: 8525034728152216598
+      Module_WOOD: 5281008199690176730
+      PauseMenuItem: 3879677326560385510
+      PauseMenuItem_Nub: 8983937552573345597
+      PauseMenuItem_Tip: 5705659965034563189
+      PromptWire_L: 8467172722228091087
+      PromptWire_R: -323943460900179666
+      UIPLACMainUIBottom2: 4825339826558388669
+      WireCappedL: 7337993952987760559
+      WireCappedR: -5767810429945579783
+      WireCappedT: -3733854051399334155
+      WireCornerBL: -5230700757546211398
+      WireCornerBR: 2766967102312914515
+      WireCornerBR_Short: -4387820407946095790
+      WireCornerTL: 3376130838574496060
+      WireCornerTR: 334551284175376585
+      WireCornerTR_Short: -2930529884957671395
+      WireHorizontal: -2364381875956747482
+      WireHorizontal2: -2459228802744090734
+      WireHorizontal3: 6394625207060944080
+      WireSJoint: 1928857462310443077
+      WireVertical: 1871986313261354465
+      WireVertical2: 1899635918277498862
+  mipmapLimitGroupName: 
   pSDRemoveMatte: 0
-  pSDShowRemoveMatteOption: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 

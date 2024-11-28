@@ -175,7 +175,7 @@ public class TrackEditingMode : EditorMode
     {
         TrackEditor.PlaySound(TrackEditor.SndMenuMove);
         CursorPosition += positionChange.Rotate(cameraRotationTurns);
-        ResetModuleFlash();
+        //ResetModuleFlash();
     }
 
     public void AdjustCursorHeight(int heightChange)

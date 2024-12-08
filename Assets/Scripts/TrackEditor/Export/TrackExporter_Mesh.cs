@@ -108,8 +108,9 @@ public partial class TrackExporter
                     cube.Vertices.Add(new ReVolt.Track.Vertex(transformedPolyVerts[k], normal));
 
                 // add poly
-                int[] vertexIndices = (polyIndexCount == 3) ? new int[] { vertexIndexCounter + 2, vertexIndexCounter + 1, vertexIndexCounter + 0, vertexIndexCounter + 3 }
-                                                            : new int[] { vertexIndexCounter + 3, vertexIndexCounter + 2, vertexIndexCounter + 1, vertexIndexCounter };
+                // Shift IDs!
+                int[] vertexIndices = (polyIndexCount == 3) ? new int[] { vertexIndexCounter + 1, vertexIndexCounter + 0, vertexIndexCounter + 2, vertexIndexCounter + 3 }
+                                                            : new int[] { vertexIndexCounter + 2, vertexIndexCounter + 1, vertexIndexCounter + 0, vertexIndexCounter + 3 };
 
                 Color[] colors = new Color[] { Color.white, Color.white, Color.white, Color.white };
                 Vector2[] uvCoordinates = new Vector2[] { Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero };
@@ -129,9 +130,10 @@ public partial class TrackExporter
 
                     for (int k = 0; k < polyIndexCount; k++)
                     {
-                        uvCoordinates[polyIndexCount - k - 1] = unitFile.UVs[uvPoly.Indices[uvIndex]];
-                        colors[polyIndexCount - k - 1] = rgbPoly.Colors[k];
-                        colors[polyIndexCount - k - 1].a = 1f;
+                        int id = (polyIndexCount * 2 - k - 2) % polyIndexCount; // Shift IDs!
+                        uvCoordinates[id] = unitFile.UVs[uvPoly.Indices[uvIndex]];
+                        colors[id] = rgbPoly.Colors[k];
+                        colors[id].a = 1f;
 
                         uvIndex = (uvIndex + uvStep) % uModValue;
                     }

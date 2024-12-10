@@ -82,6 +82,8 @@ public partial class TrackExporter
     private bool reversed = false;
     private bool reverseSprintTrack = false;
 
+    private bool exportScenery = true;
+
     private readonly string exportPath;
     private readonly string trackFolderName;
 
@@ -1087,11 +1089,11 @@ public partial class TrackExporter
         perfLogger.Log("Initialize");
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, float scale = 1f) : this(track, unitFile, false, scale, false)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, float scale = 1f, bool exportScenery = true) : this(track, unitFile, false, scale, exportScenery, false)
     {
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, float scale = 1f, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, float scale = 1f, bool exportScenery = true, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
     {
         this.trackFolderName = FileHelper.TrackNameToExportDirectory(track.Name);
         this.originalTrack = track;
@@ -1104,6 +1106,7 @@ public partial class TrackExporter
 
         this.track = track.Clone(false);
         this.exportScale = scale;
+        this.exportScenery = exportScenery;
         this.reversed = reversed;
         this.reverseSprintTrack = reverseSprintTrack;
 

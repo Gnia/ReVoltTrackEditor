@@ -294,13 +294,16 @@ public partial class TrackExporter
         world.SmallCubes.AddRange(cellCubes);
 
         // add external walls
-        for (int i = 0; i < 6; i++)
+        if (exportScenery)
         {
-            var wallUnit = unitFile.Units[i + unitFile.WallIndex];
-            var wallCube = UnitToSmallCube(wallUnit, wallMatrices[i]);
-            world.SmallCubes.AddRange(wallCube.SplitCube(RVConstants.SMALL_CUBE_SIZE));
+        for (int i = 0; i < 6; i++)
+            {
+                var wallUnit = unitFile.Units[i + unitFile.WallIndex];
+                var wallCube = UnitToSmallCube(wallUnit, wallMatrices[i]);
+                world.SmallCubes.AddRange(wallCube.SplitCube(RVConstants.SMALL_CUBE_SIZE));
+            }
+            perfLogger.Log("Create walls");
         }
-        perfLogger.Log("Create walls");
 
         // generate big cubes
         world.GenerateBigCubes(RVConstants.BIG_CUBE_SIZE);

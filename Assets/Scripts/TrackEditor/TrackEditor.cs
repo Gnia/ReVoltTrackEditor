@@ -67,6 +67,7 @@ public class TrackEditor : MonoBehaviour
     // settings
     public static bool UnlimitedMode { get; private set; } = false;
     public static float? ExportScaleOverride { get; private set; } = null;
+    public static bool NoScenery { get; private set; } = false;
 
     // useful ui
     public static PromptMode Prompt { get; private set; }
@@ -122,6 +123,7 @@ public class TrackEditor : MonoBehaviour
     {
         string[] cmdLineArgs = Environment.GetCommandLineArgs();
         UnlimitedMode = Array.IndexOf(cmdLineArgs, "-unlimited") >= 0;
+        NoScenery = Array.IndexOf(cmdLineArgs, "-noscenery") >= 0;
 
         // process arguments with one parameter
         for (int i = 1; i < cmdLineArgs.Length - 1; i++)

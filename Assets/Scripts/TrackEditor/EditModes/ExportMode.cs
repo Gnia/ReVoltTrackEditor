@@ -49,6 +49,7 @@ public class ExportMode : EditorMode
     private AudioSource clockLoopSource;
     private bool askedTrackScale = false;
     private float exportScale = 1f;
+    private bool exportScenery = true;
 
     // Other
     private void AskTrackScale()
@@ -174,7 +175,7 @@ public class ExportMode : EditorMode
         }
 
         // Otherwise, keep going
-        var exporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, exportScale);
+        var exporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, exportScale, exportScenery);
         exporter.Initialize();
         yield return null;
 
@@ -207,7 +208,7 @@ public class ExportMode : EditorMode
 
         // Track is valid
         // Create reversed exporter
-        var reverseExporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, true, exportScale,
+        var reverseExporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, true, exportScale, exportScenery,
             exporter.TrackFormsSprint,
             exporter.TrackFormsSprint ? exporter.GetEndModule() : null, // new startModule
             exporter.TrackFormsSprint ? exporter.GetStartModule() : null // new endModule
@@ -320,6 +321,8 @@ public class ExportMode : EditorMode
             AskTrackScale();
             return;
         }
+
+        exportScenery = !TrackEditor.NoScenery;
 
         clockLoopSource.Play();
         askedTrackScale = false;

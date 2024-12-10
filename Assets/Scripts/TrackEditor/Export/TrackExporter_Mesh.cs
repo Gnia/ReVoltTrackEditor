@@ -142,7 +142,8 @@ public partial class TrackExporter
                 {
                     for (int k = 0; k < polyIndexCount; k++)
                     {
-                        colors[polyIndexCount - k - 1] = GetWallColor(transformedPolyVerts[k].y, normal);
+                        int id = (polyIndexCount * 2 - k - 2) % polyIndexCount; // Shift IDs!
+                        colors[id] = GetWallColor(transformedPolyVerts[k].y, normal);
                     }
                 }
 

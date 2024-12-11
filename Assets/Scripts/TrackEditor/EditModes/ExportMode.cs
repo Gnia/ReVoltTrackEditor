@@ -310,16 +310,16 @@ public class ExportMode : EditorMode
         base.OnEnterMode();
         TrackEditor.Instance.Camera.enabled = false;
 
-        if (TrackEditor.ExportScaleOverride.HasValue)
-        {
-            // user has sepecified a custom scale
-            exportScale = TrackEditor.ExportScaleOverride.Value;
-        }
-        else if (!askedTrackScale)
+        if (!askedTrackScale)
         {
             // ask for export scale, then re-enter export mode
             AskTrackScale();
             return;
+        }
+        if (TrackEditor.ExportScaleOverride.HasValue)
+        {
+            // user has sepecified a custom scale
+            exportScale *= TrackEditor.ExportScaleOverride.Value;
         }
 
         exportScenery = !TrackEditor.NoScenery;

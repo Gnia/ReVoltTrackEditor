@@ -83,6 +83,9 @@ public partial class TrackExporter
     private bool reverseSprintTrack = false;
 
     private bool exportScenery = true;
+    private Color wallMin = EditorConstants.RootColorInGameMin;
+    private Color wallMax = EditorConstants.RootColorInGameMax;
+
 
     private readonly string exportPath;
     private readonly string trackFolderName;
@@ -1089,11 +1092,11 @@ public partial class TrackExporter
         perfLogger.Log("Initialize");
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, float scale = 1f, bool exportScenery = true) : this(track, unitFile, false, scale, exportScenery, false)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, Color32 wallMin, Color32 wallMax, float scale = 1f, bool exportScenery = true) : this(track, unitFile, false, wallMin, wallMax, scale, exportScenery, false)
     {
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, float scale = 1f, bool exportScenery = true, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, Color32 wallMin, Color32 wallMax, float scale = 1f, bool exportScenery = true, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
     {
         this.trackFolderName = FileHelper.TrackNameToExportDirectory(track.Name);
         this.originalTrack = track;
@@ -1109,6 +1112,9 @@ public partial class TrackExporter
         this.exportScenery = exportScenery;
         this.reversed = reversed;
         this.reverseSprintTrack = reverseSprintTrack;
+
+        this.wallMin = wallMin;
+        this.wallMax = wallMax;
 
         if (startModule != null && endModule != null)
         {

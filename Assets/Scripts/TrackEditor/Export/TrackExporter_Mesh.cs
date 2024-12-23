@@ -36,8 +36,8 @@ public partial class TrackExporter
 
     private Color GetWallColor(float height, Vector3 normal)
     {
-        return GetShadedColor(Color.Lerp(EditorConstants.RootColorInGameMin,
-                                         EditorConstants.RootColorInGameMax,
+        return GetShadedColor(Color.Lerp(wallMin,
+                                         wallMax,
                                          Mathf.Abs(height) / (maxElevation * RVConstants.SMALL_CUBE_SIZE)),
                                          normal);
     }
@@ -64,7 +64,7 @@ public partial class TrackExporter
                 var wallNormal = rootNormalsArray[i];
 
                 var wallColorTop = GetWallColor(unitPosition.y, wallNormal);
-                var wallColorBottom = GetShadedColor(EditorConstants.RootColorInGameMin, wallNormal);
+                var wallColorBottom = GetShadedColor(wallMin, wallNormal);
 
                 // add wall quad to cube
                 cube.Vertices.Add(new ReVolt.Track.Vertex(wallVerts[0] + unitFloorPosition, wallNormal));

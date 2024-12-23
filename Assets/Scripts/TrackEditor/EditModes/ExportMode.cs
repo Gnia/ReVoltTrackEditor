@@ -50,6 +50,8 @@ public class ExportMode : EditorMode
     private bool askedTrackScale = false;
     private float exportScale = 1f;
     private bool exportScenery = true;
+    private Color32 wallMin = EditorConstants.RootColorInGameMin;
+    private Color32 wallMax = EditorConstants.RootColorInGameMax;
 
     // Other
     private void AskTrackScale()
@@ -175,7 +177,7 @@ public class ExportMode : EditorMode
         }
 
         // Otherwise, keep going
-        var exporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, exportScale, exportScenery);
+        var exporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, wallMin, wallMax, exportScale, exportScenery);
         exporter.Initialize();
         yield return null;
 
@@ -208,7 +210,7 @@ public class ExportMode : EditorMode
 
         // Track is valid
         // Create reversed exporter
-        var reverseExporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, true, exportScale, exportScenery,
+        var reverseExporter = new TrackExporter(TrackEditor.Track, TrackEditor.TrackUnit, true, wallMin, wallMax, exportScale, exportScenery,
             exporter.TrackFormsSprint,
             exporter.TrackFormsSprint ? exporter.GetEndModule() : null, // new startModule
             exporter.TrackFormsSprint ? exporter.GetStartModule() : null // new endModule
@@ -318,11 +320,14 @@ public class ExportMode : EditorMode
         }
         if (TrackEditor.ExportScaleOverride.HasValue)
         {
-            // user has sepecified a custom scale
+            // user has specified a custom scale
             exportScale *= TrackEditor.ExportScaleOverride.Value;
         }
 
         exportScenery = !TrackEditor.NoScenery;
+
+        wallMin = TrackEditor.WallMin;
+        wallMax = TrackEditor.WallMax;
 
         clockLoopSource.Play();
         askedTrackScale = false;

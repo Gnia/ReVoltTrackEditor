@@ -69,6 +69,10 @@ public class TrackEditor : MonoBehaviour
     public static float? ExportScaleOverride { get; private set; } = null;
     public static bool NoScenery { get; private set; } = false;
 
+    public static Color WallMin { get; private set; } = EditorConstants.RootColorInGameMin;
+    public static Color WallMax { get; private set; } = EditorConstants.RootColorInGameMax;
+    public static Color WallEditor { get; private set; } = EditorConstants.RootColor;
+
     // useful ui
     public static PromptMode Prompt { get; private set; }
 
@@ -125,13 +129,41 @@ public class TrackEditor : MonoBehaviour
         UnlimitedMode = Array.IndexOf(cmdLineArgs, "-unlimited") >= 0;
         NoScenery = Array.IndexOf(cmdLineArgs, "-noscenery") >= 0;
 
-        // process arguments with one parameter
+        // process arguments with parameter(s)
         for (int i = 1; i < cmdLineArgs.Length - 1; i++)
         {
             if (cmdLineArgs[i] == "-exportscale"
                && float.TryParse(cmdLineArgs[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out float f))
             {
                 ExportScaleOverride = f;
+            }
+
+            if (cmdLineArgs[i] == "-wallmin"
+               && uint.TryParse(cmdLineArgs[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out uint rMin)
+               && uint.TryParse(cmdLineArgs[i + 2], NumberStyles.Float, CultureInfo.InvariantCulture, out uint gMin)
+               && uint.TryParse(cmdLineArgs[i + 3], NumberStyles.Float, CultureInfo.InvariantCulture, out uint bMin))
+            {
+                if (   rMin >= 0 && rMin < 256
+                    && gMin >= 0 && gMin < 256
+                    && bMin >= 0 && bMin < 256)
+                {
+                    WallMin = new Color32((byte)rMin, (byte)gMin, (byte)bMin, 255);
+                    WallEditor = Color32.Lerp(WallMin, WallMax, 0.5f);
+                }
+            }
+
+            if (cmdLineArgs[i] == "-wallmax"
+               && uint.TryParse(cmdLineArgs[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out uint rMax)
+               && uint.TryParse(cmdLineArgs[i + 2], NumberStyles.Float, CultureInfo.InvariantCulture, out uint gMax)
+               && uint.TryParse(cmdLineArgs[i + 3], NumberStyles.Float, CultureInfo.InvariantCulture, out uint bMax))
+            {
+                if (   rMax >= 0 && rMax < 256
+                    && gMax >= 0 && gMax < 256
+                    && bMax >= 0 && bMax < 256)
+                {
+                    WallMax = new Color32((byte)rMax, (byte)gMax, (byte)bMax, 255);
+                    WallEditor = Color32.Lerp(WallMin, WallMax, 0.5f);
+                }
             }
         }
     }
@@ -184,7 +216,10 @@ public class TrackEditor : MonoBehaviour
             throw new System.IO.FileNotFoundException("RTU file not found.");
         }
 
-        ProcessedTrackUnit = new TrackUnitUnity(TrackUnit);
+        // handle args
+        ParseCommandLine();
+
+        ProcessedTrackUnit = new TrackUnitUnity(TrackUnit, WallEditor);
         ProcessedTrackUnit.CreateUnits();
         ProcessedTrackUnit.CreateModules();
 
@@ -216,9 +251,6 @@ public class TrackEditor : MonoBehaviour
         // create new track and set edit mode
         NewTrackAction();
         SetEditMode<TrackEditingMode>();
-
-        // handle args
-        ParseCommandLine();
 
         Debug.Log($"TrackEditor fully initialized load time: {perfTimer.ElapsedMilliseconds}ms");
     }

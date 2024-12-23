@@ -317,7 +317,7 @@ namespace ReVolt.TrackUnit.Unity
             }
         }
 
-        public TrackUnitUnity(TrackUnitFile unitFile)
+        public TrackUnitUnity(TrackUnitFile unitFile, Color32 wallColor)
         {
             this.UnitFile = unitFile;
 
@@ -325,7 +325,7 @@ namespace ReVolt.TrackUnit.Unity
             Shader d3dShader = Shader.Find("Custom/D3D7");
             pegMaterial = new Material(d3dShader) { 
                 name = "PegMaterial", 
-                color = EditorConstants.RootColor 
+                color = wallColor
             };
 
             trackUnitMaterials[0] = pegMaterial;

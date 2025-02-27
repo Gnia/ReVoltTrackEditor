@@ -42,6 +42,53 @@ public partial class TrackExporter
                                          normal);
     }
 
+    private float GetPolyTexCoord(float pos, float polyCenterPos)
+    {
+        return pos / RVConstants.SMALL_CUBE_SIZE;
+
+        // Contain UVs in the [0~1] space.
+        // This would need to cut tall walls
+        // Since TEXTUREPROPS allow for multiple out-of-the-box wrapping options: dropped this impl.
+        /*
+        float modPos = pos % RVConstants.SMALL_CUBE_SIZE;
+        float modPolyCenter = polyCenterPos % RVConstants.SMALL_CUBE_SIZE;
+        if (modPos < 0f)
+        {
+            modPos += RVConstants.SMALL_CUBE_SIZE;
+        }
+        if (modPolyCenter < 0f)
+        {
+            modPolyCenter += RVConstants.SMALL_CUBE_SIZE;
+        }
+        if (pos > polyCenterPos)
+        {
+            if (modPos < modPolyCenter)
+            {
+                modPos += RVConstants.SMALL_CUBE_SIZE;
+            }
+        }
+        else
+        {
+            if(modPos > modPolyCenter)
+            {
+                modPos -= RVConstants.SMALL_CUBE_SIZE;
+            }
+        }
+        return modPos / RVConstants.SMALL_CUBE_SIZE;
+        */
+    }
+
+    private Vector2 GetWallUVs(Vector3 pos, Vector3 normal, Vector3 polyCenterPos)
+    {
+        // offset by half unit horizontally so wall side will end up normalized between [0~1] and not [0.5~1.5]
+        Vector3 polyUVW = new Vector3(
+            GetPolyTexCoord(pos.x - RVConstants.SMALL_CUBE_HALF, polyCenterPos.x - RVConstants.SMALL_CUBE_HALF),
+            GetPolyTexCoord(pos.y, polyCenterPos.y),
+            GetPolyTexCoord(pos.z - RVConstants.SMALL_CUBE_HALF, polyCenterPos.z - RVConstants.SMALL_CUBE_HALF)
+        );
+        return new Vector2(polyUVW.x * Mathf.Abs(normal.z) + polyUVW.z * Mathf.Abs(normal.x), polyUVW.y);
+    }
+
     private ReVolt.Track.SmallCube UnitToSmallCube(Unit unit, Matrix4x4 matrix, bool[] wallData = null)
     {
         var cube = new ReVolt.Track.SmallCube();
@@ -55,6 +102,7 @@ public partial class TrackExporter
         // create root
         if (wallData != null)
         {
+            int tpage = wallTex >= 0 ? wallTex : -1;
             for (int i = 0; i < 4; i++)
             {
                 if (!wallData[i])
@@ -65,19 +113,34 @@ public partial class TrackExporter
 
                 var wallColorTop = GetWallColor(unitPosition.y, wallNormal);
                 var wallColorBottom = GetShadedColor(wallMin, wallNormal);
+                Vector2[] uvCoordinates = new Vector2[] { Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero };
+                Vector3[] vertPos = new Vector3[] {
+                    wallVerts[0] + unitFloorPosition,
+                    wallVerts[1] + unitFloorPosition,
+                    wallVerts[1] + unitPosition,
+                    wallVerts[0] + unitPosition
+                };
+                Vector3 polyCenter = (vertPos[0] + vertPos[1] + vertPos[2] + vertPos[3]) / 4.0f;
+                if (wallTex >= 0)
+                {
+                    uvCoordinates[0] = GetWallUVs(vertPos[0], wallNormal, polyCenter);
+                    uvCoordinates[1] = GetWallUVs(vertPos[1], wallNormal, polyCenter);
+                    uvCoordinates[2] = GetWallUVs(vertPos[2], wallNormal, polyCenter);
+                    uvCoordinates[3] = GetWallUVs(vertPos[3], wallNormal, polyCenter);
+                }
 
                 // add wall quad to cube
-                cube.Vertices.Add(new ReVolt.Track.Vertex(wallVerts[0] + unitFloorPosition, wallNormal));
-                cube.Vertices.Add(new ReVolt.Track.Vertex(wallVerts[1] + unitFloorPosition, wallNormal));
-                cube.Vertices.Add(new ReVolt.Track.Vertex(wallVerts[1] + unitPosition, wallNormal));
-                cube.Vertices.Add(new ReVolt.Track.Vertex(wallVerts[0] + unitPosition, wallNormal));
+                cube.Vertices.Add(new ReVolt.Track.Vertex(vertPos[0], wallNormal));
+                cube.Vertices.Add(new ReVolt.Track.Vertex(vertPos[1], wallNormal));
+                cube.Vertices.Add(new ReVolt.Track.Vertex(vertPos[2], wallNormal));
+                cube.Vertices.Add(new ReVolt.Track.Vertex(vertPos[3], wallNormal));
 
                 cube.Polygons.Add(new ReVolt.Track.Polygon()
                 {
                     Colors = new Color[] { wallColorBottom, wallColorBottom, wallColorTop, wallColorTop },
-                    TextureNum = -1,
+                    TextureNum = (short)tpage,
                     VertexIndices = new int[] { vertexIndexCounter++, vertexIndexCounter++, vertexIndexCounter++, vertexIndexCounter++ },
-                    UVCoordinates = new Vector2[] { Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero },
+                    UVCoordinates = uvCoordinates,
                     Flags = ReVolt.Track.PolygonFlags.Quad
                 });
             }
@@ -100,7 +163,12 @@ public partial class TrackExporter
                 {
                     transformedPolyVerts[k] = matrix.MultiplyPoint3x4(unitFile.Vertices[poly.Indices[k]]);
                 }
-
+                Vector3 polyCenter = transformedPolyVerts[0];
+                for (int k = 1; k < polyIndexCount; k++)
+                {
+                    polyCenter += transformedPolyVerts[k];
+                }
+                polyCenter /= polyIndexCount;
 
                 // add verts
                 Vector3 normal = CalculateNormal(transformedPolyVerts);
@@ -140,10 +208,18 @@ public partial class TrackExporter
                 }
                 else
                 {
+                    if (wallTex >= 0)
+                    {
+                        tpage = wallTex;
+                    }
                     for (int k = 0; k < polyIndexCount; k++)
                     {
                         int id = (polyIndexCount * 2 - k - 2) % polyIndexCount; // Shift IDs!
                         colors[id] = GetWallColor(transformedPolyVerts[k].y, normal);
+                        if (wallTex >= 0)
+                        {
+                            uvCoordinates[id] = GetWallUVs(transformedPolyVerts[k], normal, polyCenter);
+                        }
                     }
                 }
 

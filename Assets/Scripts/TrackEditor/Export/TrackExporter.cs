@@ -85,6 +85,7 @@ public partial class TrackExporter
     private bool exportScenery = true;
     private Color wallMin = EditorConstants.RootColorInGameMin;
     private Color wallMax = EditorConstants.RootColorInGameMax;
+    private int wallTex = -1;
 
 
     private readonly string exportPath;
@@ -371,7 +372,8 @@ public partial class TrackExporter
         infoTemplate = infoTemplate.Replace("%STARTROT%", formatFloat(startModule.Rotation * 0.25f));
         infoTemplate = infoTemplate.Replace("%INVSTARTROT%", formatFloat(ReverseDirection(startModule.Rotation) * 0.25f));
         infoTemplate = infoTemplate.Replace("%STARTPOS%", $"{formatFloat(startModulePos.x)} {formatFloat(startModulePos.y)} {formatFloat(startModulePos.z)}"); 
-        infoTemplate = infoTemplate.Replace("%ENDPOS%", $"{formatFloat(endModulePos.x)} {formatFloat(endModulePos.y)} {formatFloat(endModulePos.z)}"); 
+        infoTemplate = infoTemplate.Replace("%ENDPOS%", $"{formatFloat(endModulePos.x)} {formatFloat(endModulePos.y)} {formatFloat(endModulePos.z)}");
+        infoTemplate = infoTemplate.Replace("%OPTIONALTEXWALLPROP%", wallTex < 0 ? "\n" : $"\nTEXTUREPROPS    {wallTex} 1 1 1  ; Index - mipmaps - wrap mode - colorkey\n");
 
         string infoFilePath = exportPath;
         if (reverseSprintTrack)
@@ -1092,11 +1094,11 @@ public partial class TrackExporter
         perfLogger.Log("Initialize");
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, Color32 wallMin, Color32 wallMax, float scale = 1f, bool exportScenery = true) : this(track, unitFile, false, wallMin, wallMax, scale, exportScenery, false)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, Color32 wallMin, Color32 wallMax, int wallTex, float scale = 1f, bool exportScenery = true) : this(track, unitFile, false, wallMin, wallMax, wallTex, scale, exportScenery, false)
     {
     }
 
-    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, Color32 wallMin, Color32 wallMax, float scale = 1f, bool exportScenery = true, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
+    public TrackExporter(EditorTrack track, TrackUnitFile unitFile, bool reversed, Color32 wallMin, Color32 wallMax, int wallTex, float scale = 1f, bool exportScenery = true, bool reverseSprintTrack = false, ModulePlacement startModule = null, ModulePlacement endModule = null)
     {
         this.trackFolderName = FileHelper.TrackNameToExportDirectory(track.Name);
         this.originalTrack = track;
@@ -1115,6 +1117,7 @@ public partial class TrackExporter
 
         this.wallMin = wallMin;
         this.wallMax = wallMax;
+        this.wallTex = wallTex;
 
         if (startModule != null && endModule != null)
         {

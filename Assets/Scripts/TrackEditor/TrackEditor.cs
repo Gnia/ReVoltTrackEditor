@@ -72,6 +72,7 @@ public class TrackEditor : MonoBehaviour
     public static Color WallMin { get; private set; } = EditorConstants.RootColorInGameMin;
     public static Color WallMax { get; private set; } = EditorConstants.RootColorInGameMax;
     public static Color WallEditor { get; private set; } = EditorConstants.RootColor;
+    public static int WallTex { get; private set; } = -1;
 
     // useful ui
     public static PromptMode Prompt { get; private set; }
@@ -164,6 +165,12 @@ public class TrackEditor : MonoBehaviour
                     WallMax = new Color32((byte)rMax, (byte)gMax, (byte)bMax, 255);
                     WallEditor = Color32.Lerp(WallMin, WallMax, 0.5f);
                 }
+            }
+
+            if (cmdLineArgs[i] == "-walltex"
+               && uint.TryParse(cmdLineArgs[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out uint texId))
+            {
+                WallTex = (int)texId;
             }
         }
     }

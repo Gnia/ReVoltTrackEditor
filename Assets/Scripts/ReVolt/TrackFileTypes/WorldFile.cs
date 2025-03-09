@@ -324,7 +324,7 @@ namespace ReVolt.Track
                 for (int j=0; j < BigCubes.Count; j++)
                 {
                     Vector2 bigCubeMin = BigCubes[j].Center.ToVec2XZ() - new Vector2(size / 2f, size / 2f);
-                    Vector2 bigCubeMax = bigCubeMin + new Vector2(size, size);
+                    Vector2 bigCubeMax = bigCubeMin + new Vector2(size * 1.001f, size * 1.001f);//Add a small amount so we always have intersecting cubes
 
                     var smallCubeRect = Rect.MinMaxRect(smallCubeMin.x, smallCubeMin.y, smallCubeMax.x, smallCubeMax.y);
                     var bigCubeRect = Rect.MinMaxRect(bigCubeMin.x, bigCubeMin.y, bigCubeMax.x, bigCubeMax.y);

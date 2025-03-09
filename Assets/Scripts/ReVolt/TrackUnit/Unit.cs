@@ -54,7 +54,7 @@ namespace ReVolt.TrackUnit
 
         public void ReadBinary(BinaryReader reader)
         {
-            this.MeshID = reader.ReadUInt16();
+            this.MeshID = FileCommon.ReadIDs();
 
             UVPolys.Clear();
             Surfaces.Clear();
@@ -80,7 +80,7 @@ namespace ReVolt.TrackUnit
             int rgbCount = reader.ReadUInt16();
             for(int i=0; i < rgbCount; i++)
             {
-                int rgb = reader.ReadUInt16();
+                int rgb = FileCommon.ReadIDs();
                 RGBs.Add(rgb);
             }
 
@@ -89,7 +89,7 @@ namespace ReVolt.TrackUnit
 
         public void WriteBinary(BinaryWriter writer)
         {
-            writer.Write((ushort)MeshID);
+            FileCommon.WriteIDs(MeshID);
 
             writer.Write((ushort)UVPolys.Count);
             for(int i=0; i < UVPolys.Count; i++)
@@ -108,7 +108,7 @@ namespace ReVolt.TrackUnit
             writer.Write((ushort)RGBs.Count);
             for(int i=0; i < RGBs.Count; i++)
             {
-                writer.Write((ushort)RGBs[i]);
+                FileCommon.WriteIDs(RGBs[i]);
             }
 
             writer.Write((ushort)RootEdges);

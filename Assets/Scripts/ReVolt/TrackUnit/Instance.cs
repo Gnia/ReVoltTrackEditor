@@ -31,7 +31,7 @@ namespace ReVolt.TrackUnit
 
         public void ReadBinary(BinaryReader reader)
         {
-            this.UnitID = reader.ReadUInt16();
+            this.UnitID = FileCommon.ReadIDs();
             this.Direction = reader.ReadUInt16();
             this.Position = new Vector2Int(reader.ReadInt16(), reader.ReadInt16());
             this.Elevation = reader.ReadInt16();
@@ -39,7 +39,7 @@ namespace ReVolt.TrackUnit
 
         public void WriteBinary(BinaryWriter writer)
         {
-            writer.Write((ushort)UnitID);
+            FileCommon.WriteIDs(UnitID);
             writer.Write((ushort)Direction);
             
             writer.Write((short)Position.x);

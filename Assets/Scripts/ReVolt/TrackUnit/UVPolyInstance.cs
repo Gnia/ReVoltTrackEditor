@@ -30,14 +30,14 @@ namespace ReVolt.TrackUnit
         public void ReadBinary(BinaryReader reader)
         {
             this.TPage = reader.ReadByte();
-            this.PolyID = reader.ReadUInt16();
+            this.PolyID = FileCommon.ReadIDs();
             this.Rotation = reader.ReadByte();
         }
 
         public void WriteBinary(BinaryWriter writer)
         {
             writer.Write((byte)TPage);
-            writer.Write((ushort)PolyID);
+            FileCommon.WriteIDs(PolyID);
             writer.Write((byte)Rotation);
         }
     }

@@ -219,6 +219,7 @@ public partial class TrackExporter
         var polySet = unitFile.PolySets[mesh.PolySets[RVConstants.HULL_INDEX]];
         for (int i = 0; i < polySet.PolygonIndices.Count; i++)
         {
+            
             var poly = unitFile.Polygons[polySet.PolygonIndices[i] & ~RVConstants.GOURAUD_SHIFTED];
             int polyVertCount = (poly.Indices.Length == 3) ? 3 : 4;
 
@@ -349,12 +350,15 @@ public partial class TrackExporter
         perfLogger.Log("Remove extra polygons");
 
         // add external walls
-        for (int i = 0; i < 6; i++)
+        if (exportScenery)
         {
-            var wallUnit = unitFile.Units[i + unitFile.WallIndex];
-            collision.Polyhedrons.AddRange(UnitToCollisionBucket(wallUnit, wallMatrices[i]));
+            for (int i = 0; i < 6; i++)
+            {
+                var wallUnit = unitFile.Units[i + unitFile.WallIndex];
+                collision.Polyhedrons.AddRange(UnitToCollisionBucket(wallUnit, wallMatrices[i]));
+            }
+            perfLogger.Log("Add walls");
         }
-        perfLogger.Log("Add walls");
 
         // finalize collision (merges polygons and adds the final results to the collision file)
         FinalizeCollision();

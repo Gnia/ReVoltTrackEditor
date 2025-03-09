@@ -32,7 +32,7 @@ namespace ReVolt.TrackUnit
             Indices = new int[sideCount];
             for (int i = 0; i < sideCount; i++)
             {
-                this.Indices[i] = reader.ReadUInt16();
+                this.Indices[i] = FileCommon.ReadIDs();
             }
         }
 
@@ -42,7 +42,7 @@ namespace ReVolt.TrackUnit
 
             for(int i=0; i < Indices.Length; i++)
             {
-                writer.Write((ushort)Indices[i]);
+                FileCommon.WriteIDs(Indices[i]);
             }
         }
     }

@@ -20,7 +20,11 @@
 public class RVConstants
 {
     public const float GameScale = 250f;
+#if USE_32BITS_IDS
     public const int GOURAUD_SHIFTED = 0x8000;
+#else
+    public const int GOURAUD_SHIFTED = -0x7FFFFFFF - 1; // 0x80000000 casted to a signed int
+#endif
 
     public const int TPAGE_COUNT = 9;
 

@@ -33,7 +33,7 @@ namespace ReVolt.TrackUnit
             int polySetCount = reader.ReadUInt16();
             for (int i = 0; i < polySetCount; i++)
             {
-                int polySet = reader.ReadUInt16();
+                int polySet = FileCommon.ReadIDs();
                 PolySets.Add(polySet);
             }
         }
@@ -43,7 +43,7 @@ namespace ReVolt.TrackUnit
             writer.Write((ushort)PolySets.Count);
             for(int i=0; i < PolySets.Count; i++)
             {
-                writer.Write((ushort)PolySets[i]);
+                FileCommon.WriteIDs(PolySets[i]);
             }
         }
     }

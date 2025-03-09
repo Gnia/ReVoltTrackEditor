@@ -23,13 +23,73 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 
+#if USE_32BITS_IDS
+using rtuIDs = System.Int32;
+#else
+using rtuIDs = System.Int16;
+#endif
+
 namespace ReVolt.TrackUnit
 {
+    public class FileCommon
+    {
+        public static void CheckIndexExtended(ushort fileVersion)
+        {
+            bool use32BitsIndexes = fileVersion > 13;
+#if USE_32BITS_IDS
+            if (!use32BitsIndexes)
+                Debug.LogError("RTU file is using 16 bits IDs (older format <= RTU v.13) but it should be using 32 bits IDs.");
+            else
+                Debug.Log("Using 32 bits IDs in RTU");
+#else
+            if (use32BitsIndexes)
+                Debug.LogError("RTU file is using 32 bits IDs (newer format > RTU v.13) but it should be using 16 bits IDs.");
+            else
+                Debug.Log("Using 16 bits IDs in RTU");
+#endif
+        }
+
+        public static void SetIdReader(BinaryReader reader)
+        {
+#if USE_32BITS_IDS
+            TrackUnitFile.IdReader = reader.ReadUInt32;
+#else
+            TrackUnitFile.IdReader = reader.ReadUInt16;
+#endif
+        }
+        public static void SetIdReader(BinaryWriter writer)
+        {
+            TrackUnitFile.IdWriter = writer.Write;
+        }
+#if USE_32BITS_IDS
+        public static int ReadIDs()
+        {
+            return (int)TrackUnitFile.IdReader();
+        }
+        public static void WriteIDs(int value)
+        {
+            TrackUnitFile.IdWriter((uint)value);
+        }
+#else
+        public static ushort ReadIDs()
+        {
+            return TrackUnitFile.IdReader();
+        }
+        public static void WriteIDs(int value)
+        {
+            TrackUnitFile.IdWriter((ushort)value);
+        }
+#endif
+    }
     public class TrackUnitFile : IBinSerializable
     {
         public const int MAX_MODULE_ROUTES = 2;
         private readonly byte[] HEADER = Encoding.Default.GetBytes("RTU ");
+#if USE_32BITS_IDS
+        private const ushort VERSION = 14;
+#else
         private const ushort VERSION = 13;
+#endif
         private const ushort TARGET = 2; // set to 2 with new modules update
 
         public readonly List<Vector3> Vertices = new List<Vector3>();
@@ -46,6 +106,13 @@ namespace ReVolt.TrackUnit
 
         public int TPageCount;
         public int WallIndex;
+    #if USE_32BITS_IDS
+        public static Func<uint> IdReader { get; set; }
+        public static Action<uint> IdWriter { get; set; }
+    #else
+        public static Func<ushort> IdReader { get; set; }
+        public static Action<ushort> IdWriter { get; set; }
+    #endif
 
         public void ReadBinary(BinaryReader reader)
         {
@@ -58,6 +125,9 @@ namespace ReVolt.TrackUnit
                 throw new InvalidDataException("Incorrect RTU header.");
             if (version != VERSION || target != TARGET)
                 throw new InvalidDataException("RTU file version mismatch: found " + version.ToString() + "." + target.ToString() + ". Requires version " + VERSION.ToString() + "." + TARGET.ToString() + ".");
+            
+            FileCommon.CheckIndexExtended(version);
+            FileCommon.SetIdReader(reader);
 
             Vertices.Clear();
             UVs.Clear();
@@ -69,13 +139,13 @@ namespace ReVolt.TrackUnit
             Units.Clear();
             Modules.Clear();
 
-            int vertexCount = reader.ReadUInt16();
+            int vertexCount = FileCommon.ReadIDs();
             for (int i = 0; i < vertexCount; i++)
             {
                 Vertices.Add(reader.ReadVector3());
             }
 
-            int polyCount = reader.ReadUInt16();
+            int polyCount = FileCommon.ReadIDs();
             for (int i = 0; i < polyCount; i++)
             {
                 var poly = new Polygon();
@@ -83,7 +153,7 @@ namespace ReVolt.TrackUnit
                 Polygons.Add(poly);
             }
 
-            int rgbPolyCount = reader.ReadUInt16();
+            int rgbPolyCount = FileCommon.ReadIDs();
             for (int i = 0; i < rgbPolyCount; i++)
             {
                 var rgbPoly = new ColorPolygon();
@@ -91,7 +161,7 @@ namespace ReVolt.TrackUnit
                 ColorPolygons.Add(rgbPoly);
             }
 
-            int polySetCount = reader.ReadUInt16();
+            int polySetCount = FileCommon.ReadIDs();
             for (int i = 0; i < polySetCount; i++)
             {
                 var polySet = new PolySet();
@@ -99,7 +169,7 @@ namespace ReVolt.TrackUnit
                 PolySets.Add(polySet);
             }
 
-            int meshCount = reader.ReadUInt16();
+            int meshCount = FileCommon.ReadIDs();
             for (int i = 0; i < meshCount; i++)
             {
                 var mesh = new Mesh();
@@ -107,13 +177,13 @@ namespace ReVolt.TrackUnit
                 Meshes.Add(mesh);
             }
 
-            int uvCount = reader.ReadUInt16();
+            int uvCount = FileCommon.ReadIDs();
             for (int i = 0; i < uvCount; i++)
             {
                 UVs.Add(reader.ReadVector2());
             }
 
-            int uvPolyCount = reader.ReadUInt16();
+            int uvPolyCount = FileCommon.ReadIDs();
             for (int i = 0; i < uvPolyCount; i++)
             {
                 var poly = new Polygon();
@@ -121,7 +191,7 @@ namespace ReVolt.TrackUnit
                 UVPolygons.Add(poly);
             }
 
-            int unitCount = reader.ReadUInt16();
+            int unitCount = FileCommon.ReadIDs();
             for (int i = 0; i < unitCount; i++)
             {
                 var unit = new Unit();
@@ -132,7 +202,7 @@ namespace ReVolt.TrackUnit
                 unit.TrimExcessSurfaces(this);
             }
 
-            int moduleCount = reader.ReadUInt16();
+            int moduleCount = FileCommon.ReadIDs();
             for (int i = 0; i < moduleCount; i++)
             {
                 var module = new Module();
@@ -151,7 +221,7 @@ namespace ReVolt.TrackUnit
             }
 
             this.TPageCount = reader.ReadUInt16();
-            this.WallIndex = reader.ReadUInt16();
+            this.WallIndex = FileCommon.ReadIDs();
         }
 
         public void WriteBinary(BinaryWriter writer)
@@ -160,62 +230,62 @@ namespace ReVolt.TrackUnit
             writer.Write(VERSION);
             writer.Write(TARGET);
             
-            writer.Write((ushort)Vertices.Count);
+            FileCommon.WriteIDs(Vertices.Count);
             for(int i=0; i < Vertices.Count; i++)
             {
                 writer.WriteVector3(Vertices[i]);
             }
 
-            writer.Write((ushort)Polygons.Count);
+            FileCommon.WriteIDs(Polygons.Count);
             for (int i = 0; i < Polygons.Count; i++)
             {
                 Polygons[i].WriteBinary(writer);
             }
             
-            writer.Write((ushort)ColorPolygons.Count);
+            FileCommon.WriteIDs(ColorPolygons.Count);
             for (int i = 0; i < ColorPolygons.Count; i++)
             {
                 ColorPolygons[i].WriteBinary(writer);
             }
 
-            writer.Write((ushort)PolySets.Count);
+            FileCommon.WriteIDs(PolySets.Count);
             for (int i = 0; i < PolySets.Count; i++)
             {
                 PolySets[i].WriteBinary(writer);
             }
 
-            writer.Write((ushort)Meshes.Count);
+            FileCommon.WriteIDs(Meshes.Count);
             for (int i = 0; i < Meshes.Count; i++)
             {
                 Meshes[i].WriteBinary(writer);
             }
 
-            writer.Write((ushort)UVs.Count);
+            FileCommon.WriteIDs(UVs.Count);
             for (int i = 0; i < UVs.Count; i++)
             {
                 writer.WriteVector2(UVs[i]);
             }
 
-            writer.Write((ushort)UVPolygons.Count);
+            FileCommon.WriteIDs(UVPolygons.Count);
             for (int i = 0; i < UVPolygons.Count; i++)
             {
                 UVPolygons[i].WriteBinary(writer);
             }
 
-            writer.Write((ushort)Units.Count);
+            FileCommon.WriteIDs(Units.Count);
             for (int i = 0; i < Units.Count; i++)
             {
                 Units[i].WriteBinary(writer);
             }
 
-            writer.Write((ushort)Modules.Count);
+            FileCommon.WriteIDs(Modules.Count);
             for (int i = 0; i < Modules.Count; i++)
             {
                 Modules[i].WriteBinary(writer);
             }
 
             writer.Write((ushort)TPageCount);
-            writer.Write((ushort)WallIndex);
+            FileCommon.WriteIDs(WallIndex);
         }
 
         public TrackUnitFile() { }

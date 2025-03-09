@@ -30,20 +30,20 @@ namespace ReVolt.TrackUnit
         {
             PolygonIndices.Clear();
 
-            int indexCount = reader.ReadUInt16();
+            int indexCount = FileCommon.ReadIDs();
             for (int i = 0; i < indexCount; i++)
             {
-                int index = reader.ReadUInt16();
+                int index = FileCommon.ReadIDs();
                 PolygonIndices.Add(index);
             }
         }
 
         public void WriteBinary(BinaryWriter writer)
         {
-            writer.Write((ushort)PolygonIndices.Count);
+            FileCommon.WriteIDs(PolygonIndices.Count);
             for(int i=0; i < PolygonIndices.Count; i++)
             {
-                writer.Write((ushort)PolygonIndices[i]);
+                FileCommon.WriteIDs(PolygonIndices[i]);
             }
         }
     }
